@@ -1,0 +1,88 @@
+model:
+  base_learning_rate: 1.0e-6
+  target: refnet.models.colorizerXL.InferenceWrapper
+  params:
+    linear_start: 0.00085
+    linear_end: 0.0120
+    timesteps: 1000
+    image_size: 128
+    channels: 4
+    scale_factor: 0.13025
+    logits_embed: false
+
+    unet_config:
+      target: refnet.modules.unet.DualCondUNetXL
+      params:
+        use_checkpoint: True
+        in_channels: 4
+        out_channels: 4
+        model_channels: 320
+        adm_in_channels: 512
+#        adm_in_channels: 2816
+        num_classes: sequential
+        attention_resolutions: [4, 2]
+        num_res_blocks: 2
+        channel_mult: [1, 2, 4]
+        num_head_channels: 64
+        use_spatial_transformer: true
+        use_linear_in_transformer: true
+        transformer_depth: [1, 2, 10]
+        context_dim: 2048
+
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        ddconfig:
+          double_z: true
+          z_channels: 4
+          resolution: 512
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult: [1, 2, 4, 4]
+          num_res_blocks: 2
+          attn_resolutions: []
+          dropout: 0.0
+
+    cond_stage_config:
+      target: refnet.modules.embedder.HFCLIPVisionModel
+      #      target: refnet.modules.embedder.FrozenOpenCLIPImageEmbedder
+      params:
+        arch: ViT-bigG-14
+
+    control_encoder_config:
+#      target: refnet.modules.encoder.MultiEncoder
+      target: refnet.modules.encoder.MultiScaleAttentionEncoder
+      params:
+        in_ch: 3
+        model_channels: 320
+        ch_mults: [ 1, 2, 4 ]
+
+    img_embedder_config:
+      target: refnet.modules.embedder.WDv14SwinTransformerV2
+
+    scalar_embedder_config:
+      target: refnet.modules.embedder.TimestepEmbedding
+      params:
+        embed_dim: 256
+
+    proj_config:
+      target: refnet.modules.proj.ClusterConcat
+#      target: refnet.modules.proj.RecoveryClusterConcat
+      params:
+        input_dim: 1280
+        c_dim: 1024
+        output_dim: 2048
+        token_length: 196
+        dim_head: 128
+#    proj_config:
+#      target: refnet.modules.proj.LogitClusterConcat
+#      params:
+#        input_dim: 1280
+#        c_dim: 1024
+#        output_dim: 2048
+#        token_length: 196
+#        dim_head: 128
+#        mlp_in_dim: 9083
+#        mlp_ckpt_path: pretrained_models/proj.safetensors
